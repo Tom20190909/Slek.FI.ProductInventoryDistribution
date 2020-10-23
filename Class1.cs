@@ -235,7 +235,7 @@ namespace Slek.FI.ProductInventoryDistribution
 			// field5.IsShowTotal = false;
 			base.SettingInfo.AggregateFields.Add(field6);
 			base.SettingInfo.SelectedFields.Add(field6);
-			//构造透视表行
+			
 			SettingField field7 = PivotReportSettingInfo.CreateColumnSettingField(new TextField()
 			{
 				Key = "仓库",
