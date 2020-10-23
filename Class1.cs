@@ -245,7 +245,7 @@ namespace Slek.FI.ProductInventoryDistribution
 
 			base.SettingInfo.ColTitleFields.Add(field7);
 			base.SettingInfo.SelectedFields.Add(field7);
-		
+		//
 		
 		}
 	}
