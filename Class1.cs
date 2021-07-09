@@ -92,23 +92,34 @@ namespace Slek.FI.ProductInventoryDistribution
 			base.SettingInfo = new PivotReportSettingInfo();
 
 			//string sql = string.Format(@"/*dialect*/ select ROW_NUMBER() OVER(ORDER BY a.物料编号,仓库) FIDENTITYID , a.*,b.可用库存总量,b.总库存量 into {0} from V_invstock_all a left join V_invstock_total b on a.物料编号=b.物料编号", tableName);
-			string sql = string.Format(@"/*dialect*/ select FIDENTITYID ,t0.物料编号,t0.物料名称,仓库,合格库存,待检库存,订单占用,可用库存总量,总库存量,cast(isnull(t2.销售数量,0) as     int) 销售总量,
+			string sql = string.Format(@"/*dialect*/select FIDENTITYID ,t0.物料编号,t0.物料名称,仓库,合格库存,待检库存,订单占用,可用库存总量,总库存量,cast(isnull(t2.销售数量,0) as     int) 销售总量,
 					case  工作天数 when 0 then 0 else   cast(isnull(t2.销售数量,0) as int)/工作天数 end 日均销量,
-					case  (cast(isnull(t2.销售数量,0) as int)/工作天数) when 0 then 0  else   cast(可用库存总量/(cast(isnull(t2.销售数量,0) as int)/工作天数) as numeric(18,1)) end 库存可用天数 into {0}
+					case  (cast(isnull(t2.销售数量,0) as int)/工作天数) when 0 then 0  else   cast(可用库存总量/(cast(isnull(t2.销售数量,0) as int)/工作天数) as numeric(18,1)) end 库存可用天数,最初销售日期 into {0}
 					 from 
 					(
 					select ROW_NUMBER() OVER(ORDER BY a.物料编号,仓库) FIDENTITYID ,a.*,b.可用库存总量,b.总库存量,'A'  ts
 					--,c.daycount  
 					from V_invstock_all1 a left join V_invstock_total1 b on a.物料编号=b.物料编号
 					) t0
-					left join (SELECT  count(1) 工作天数,'A' ts FROM T_ENG_WORKCALDATA where fday between '{1}' and '{2}' and fisworktime=1) t1 
-					on t0.ts=t1.ts
+					left join (
+					
+					select top  100000000  FNUMBER,dbo.GetWorkDays(min(FDATE),GETDATE()) 工作天数,convert(varchar(10),min(FDATE),120)  最初销售日期  from 
+					(
+					select  b.FBILLNO,c.FNUMBER,b.FDOCUMENTSTATUS,b.FDATE
+					from          T_SAL_OUTSTOCKENTRY a
+					left join     T_SAL_OUTSTOCK      b on a.FID=b.FID
+					left join     T_BD_MATERIAL       c on a.FMATERIALID=c.FMATERIALID
+					left join     T_BD_CUSTOMER_L     e on b.FCUSTOMERID=e.FCUSTID and e.FLOCALEID=2052
+					where b.FDOCUMENTSTATUS='C' and e.FNAME not in ('舒美个人护理用品(深圳)有限公司','舒芙雅生物科技有限公司','舒蕾个人护理用品有限公司','舒颜日化(武汉)有限公司')
+					) e group by FNUMBER order by FNUMBER
+					) t1 
+					on t0.物料编号=t1.FNUMBER
 					left join 
 					(
 					select 
 					j.fnumber 物料编号,
 					e.fname 物料名称,
-				 sum(a.FRealQty)  销售数量
+				    sum(a.FRealQty)  销售数量
 					from T_SAL_OUTSTOCKENTRY  a
 				 inner join T_SAL_OUTSTOCK b on a.fid=b.fid 
 				 --sum(a.FPriceQty)  销售数量
@@ -119,10 +130,10 @@ namespace Slek.FI.ProductInventoryDistribution
 					LEFT JOIN T_BD_MATERIAL_L e on  a.FMATERIALID=e.FMATERIALID
 					LEFT JOIN T_BD_MATERIAL j on  a.FMATERIALID=j.FMATERIALID
 					where 
-					  (b.fdate  between '{1}' and '{2}')
-					   and b.FDOCUMENTSTATUS='C' and c.fname  not like '舒颜%' and c.fname not like '舒美%' and  c.fname not like '舒蕾%'
+					
+					   b.FDOCUMENTSTATUS='C' and c.fname   not in ('舒美个人护理用品(深圳)有限公司','舒芙雅生物科技有限公司','舒蕾个人护理用品有限公司','舒颜日化(武汉)有限公司')
 					   group by j.fnumber,e.fname 
-					) t2 on t0.物料编号=t2.物料编号 where  t0.物料编号 in ('{3}')", tableName, Filter[0], Filter[1], whereNumber);
+					) t2 on t0.物料编号=t2.物料编号 where  t0.物料编号 in ('{1}')", tableName, whereNumber);
 			DBUtils.ExecuteDynamicObject(this.Context, sql);
 
 			//构造透视表列
@@ -149,6 +160,15 @@ namespace Slek.FI.ProductInventoryDistribution
 			base.SettingInfo.SelectedFields.Add(field1);
 
 
+			SettingField field20 = PivotReportSettingInfo.CreateColumnSettingField(new TextField()
+			{
+				Key = "最初销售日期",
+				FieldName = "最初销售日期",
+				Name = new LocaleValue("最初销售日期")
+			}, 2);
+			field20.IsShowTotal = false;
+			base.SettingInfo.RowTitleFields.Add(field20);
+			base.SettingInfo.SelectedFields.Add(field20);
 
 			SettingField field21 = PivotReportSettingInfo.CreateColumnSettingField(new DecimalField()
 			{
